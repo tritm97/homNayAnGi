@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="eng">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hôm nay ăn gì?</title>
+  <link type="image/png" sizes="16x16" rel="icon" href="https://img.icons8.com/fluency/48/hamburger.png">
+
+  <!-- <script src="https://cdn.tailwindcss.com"></script> -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      overflow-x: hidden;
+    }
+
+    body {
+      background: linear-gradient(135deg, #c7d2fe, #bfdbfe, #dbeafe);
+      touch-action: manipulation;
+    }
+
+    /* iOS switch */
+    .switch {
+      position: relative;
+      width: 50px;
+      height: 28px;
+    }
+
+    .switch input {
+      display: none;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: #e5e7eb;
+      border-radius: 999px;
+      transition: 0.3s;
+    }
+
+    .slider::before {
+      content: "";
+      position: absolute;
+      height: 22px;
+      width: 22px;
+      left: 3px;
+      top: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: 0.3s;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    input:checked + .slider {
+      background: #34c759;
+    }
+
+    input:checked + .slider::before {
+      transform: translateX(22px);
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex items-center justify-center">
+
+  <div class="w-full max-w-[380px] mx-auto px-3 sm:mx-0 bg-white/80 backdrop-blur-xl rounded-[32px] shadow-xl p-5">
+
+    <!-- Header -->
+    <h1 class="text-xl sm:text-2xl font-semibold text-gray-800 mb-4">
+      <div class="flex items-center">
+        <img class="mr-2" width="48" height="48" src="https://img.icons8.com/fluency/48/hamburger.png" alt="hamburger"/>
+        <span>Hôm nay ăn gì?</span>
+      </div>
+    </h1>
+
+    <!-- Group -->
+    <div class="bg-gray-100 rounded-2xl overflow-hidden border border-gray-200 shadow-inner mb-4">
+
+      <input id="titleInput"
+        type="text"
+        placeholder="Tiêu đề"
+        class="w-full px-4 py-3 bg-transparent outline-none border-b border-gray-200 hidden"
+      />
+
+      <textarea
+        id="itemsInput"
+        rows="3"
+        placeholder="Nhập món ăn. Mỗi món 1 dòng."
+        class="w-full px-4 py-3 bg-transparent outline-none resize-none text-base"
+      ></textarea>
+    </div>
+
+    <!-- Switch -->
+    <div class="flex justify-between items-center bg-gray-100 px-4 py-3 rounded-2xl mb-4 border border-gray-200 shadow-inner">
+      <span class="text-gray-700">Cho phép quay trùng</span>
+
+      <label class="switch">
+        <input type="checkbox" id="allowDuplicate">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <!-- Wheel -->
+    <div class="relative flex justify-center mb-5">
+
+      <div class="absolute right-10 translate-x-full top-1/2 -translate-y-1/2 z-10">
+        <div class="w-0 h-0 
+          border-t-[10px] border-t-transparent
+          border-b-[10px] border-b-transparent
+          border-r-[16px] border-r-red-400">
+        </div>
+      </div>
+
+      <canvas id="wheelCanvas"
+        width="300" height="300"
+        class="w-[220px] h-[220px] sm:w-[280px] sm:h-[280px] rounded-full shadow-md bg-white">
+      </canvas>
+    </div>
+
+    <!-- Button -->
+    <button id="spinBtn" onclick="spinWheel()" disabled
+      class="w-full py-3 sm:py-4 rounded-2xl bg-blue-500 hover:bg-blue-700 text-white text-base sm:text-lg font-medium shadow transition-all active:scale-95 duration-150 ease-in-out cursor-pointer">
+      Quay
+    </button>
+
+    <!-- Result -->
+    <div id="result"
+      class="text-center text-2xl mt-4 text-green-500 font-semibold min-h-[28px] opacity-0 transition-opacity duration-300">
+    </div>
+
+    <div class="text-sm italic text-right">
+      © _tritm97
+    </div>
+  </div>
+
+  <script>
+    let remainingItems = [];
+    let currentRotation = 0;
+    let isSpinning = false;
+
+    function spinWheel() {
+      if (isSpinning) return;
+      isSpinning = true;
+
+      const button = document.getElementById("spinBtn");
+      button.disabled = true;
+      button.classList.add("opacity-50", "cursor-not-allowed");
+      button.innerText = "Đang quay...";
+
+      const rawItems = document.getElementById('itemsInput').value
+      .trim().split('\n').filter(i => i.trim());
+
+      const allowDup = document.getElementById('allowDuplicate').checked;
+
+      const canvas = document.getElementById("wheelCanvas");
+      const ctx = canvas.getContext("2d");
+      const resultDiv = document.getElementById("result");
+
+      // if (rawItems.length < 2) {
+      //   alert("Nhập ít nhất 2 món!");
+      //   return;
+      // }
+
+      if (!allowDup) {
+        if (remainingItems.length === 0) {
+          remainingItems = [...rawItems];
+        }
+      }
+
+      const items = allowDup ? rawItems : remainingItems;
+
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const radius = 130;
+      const arc = 2 * Math.PI / items.length;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      for (let i = 0; i < items.length; i++) {
+        const angle = i * arc;
+
+        ctx.beginPath();
+        ctx.fillStyle = `hsl(${i * 360 / items.length}, 70%, 85%)`;
+        ctx.moveTo(centerX, centerY);
+        ctx.arc(centerX, centerY, radius, angle, angle + arc);
+        ctx.fill();
+
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(angle + arc / 2);
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#333";
+        ctx.font = "14px -apple-system, sans-serif";
+        ctx.fillText(items[i], radius - 10, 0);
+        ctx.restore();
+      }
+
+      const selectedIndex = Math.floor(Math.random() * items.length);
+      const selectedItem = items[selectedIndex];
+
+      const degreesPerSlice = 360 / items.length;
+
+      // Góc target (điểm pointer nằm bên phải = 0 độ)
+      const targetAngle = 360 - (selectedIndex * degreesPerSlice + degreesPerSlice / 2);
+
+      // Chuẩn hóa về 0-360
+      const normalizedCurrent = currentRotation % 360;
+
+      // Tính delta để luôn quay tới phía trước (clockwise)
+      let delta = targetAngle - normalizedCurrent;
+      if (delta < 0) delta += 360;
+
+      // Tổng rotation = quay thêm 6 vòng + delta
+      const spinRotation = 360 * 6 + delta;
+
+      // Cập nhật rotation mới
+      currentRotation += spinRotation;
+
+      // Apply
+      canvas.style.willChange = "transform";
+      canvas.style.transition = "transform 3s cubic-bezier(0.25, 1, 0.5, 1)";
+      canvas.style.transform = `rotate(${currentRotation}deg)`;
+
+      setTimeout(() => {
+        resultDiv.innerText = `${selectedItem}`;
+        resultDiv.classList.remove("opacity-0");
+
+        if (!allowDup) {
+          remainingItems.splice(selectedIndex, 1);
+        }
+
+        isSpinning = false;
+
+        button.disabled = false;
+        button.classList.remove("opacity-50", "cursor-not-allowed");
+        button.innerText = "Quay";
+
+      }, 3000);
+    }
+
+    const textarea = document.getElementById("itemsInput");
+    const spinBtn = document.getElementById("spinBtn");
+
+    textarea.addEventListener("input", validateInput);
+
+    function validateInput() {
+      const items = textarea.value
+        .trim()
+        .split("\n")
+        .filter(i => i.trim());
+
+      if (items.length >= 2) {
+        spinBtn.disabled = false;
+        spinBtn.classList.remove("opacity-50", "cursor-not-allowed");
+      } else {
+        spinBtn.disabled = true;
+        spinBtn.classList.add("opacity-50", "cursor-not-allowed");
+      }
+    };
+    validateInput();
+  </script>
+
+</body>
+</html>
